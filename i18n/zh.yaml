@@ -1,0 +1,2 @@
+status-running: 运行中
+welcomeWithName: 你好 {{ .name }}

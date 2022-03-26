@@ -1,0 +1,196 @@
+consumes:
+- application/json
+definitions:
+  domain.ArticleDetail:
+    properties:
+      abstracts:
+        type: string
+      comment_num:
+        type: integer
+      content:
+        type: string
+      create_time:
+        type: string
+      id:
+        type: integer
+      is_elite:
+        type: boolean
+      is_invalid:
+        type: boolean
+      is_top:
+        type: boolean
+      modify_time:
+        type: string
+      source:
+        type: integer
+      status:
+        type: integer
+      tags:
+        items:
+          $ref: '#/definitions/domain.Tag'
+        type: array
+      title:
+        type: string
+      type:
+        type: integer
+      uid:
+        type: integer
+      view_num:
+        type: integer
+    type: object
+  domain.ArticleMetaExt:
+    properties:
+      abstracts:
+        type: string
+      comment_num:
+        type: integer
+      create_time:
+        type: string
+      id:
+        type: integer
+      is_elite:
+        type: boolean
+      is_invalid:
+        type: boolean
+      is_top:
+        type: boolean
+      modify_time:
+        type: string
+      source:
+        type: integer
+      status:
+        type: integer
+      tags:
+        items:
+          $ref: '#/definitions/domain.Tag'
+        type: array
+      title:
+        type: string
+      type:
+        type: integer
+      uid:
+        type: integer
+      view_num:
+        type: integer
+    type: object
+  domain.Tag:
+    properties:
+      id:
+        type: integer
+      image:
+        type: string
+      name:
+        type: string
+      note:
+        type: string
+    type: object
+  domain.TagWithStat:
+    properties:
+      count:
+        type: integer
+      id:
+        type: integer
+      image:
+        type: string
+      name:
+        type: string
+      note:
+        type: string
+    type: object
+  fail.ErrorBody:
+    properties:
+      code:
+        type: string
+      data: {}
+      message:
+        type: string
+    type: object
+  meta.ServiceInfo:
+    properties:
+      duration:
+        type: integer
+      instanceId:
+        type: string
+      name:
+        type: string
+      numCpu:
+        type: integer
+      numGoroutine:
+        type: integer
+      numMaxProcs:
+        type: integer
+      startTime:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: A Wiki services.
+  title: owlet
+  version: v0.1.x
+paths:
+  /:
+    get:
+      operationId: get-meta-infomation
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meta.ServiceInfo'
+  /v1/articles:
+    get:
+      operationId: article-meta-list
+      parameters:
+      - description: query keyword
+        in: query
+        name: kw
+        type: string
+      - description: page number based 1
+        in: query
+        name: page
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.ArticleMetaExt'
+            type: array
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
+  /v1/articles/{id}:
+    get:
+      operationId: article-detail
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: response body
+          schema:
+            $ref: '#/definitions/domain.ArticleDetail'
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
+  /v1/tags:
+    get:
+      operationId: tag-with-stat-list
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.TagWithStat'
+            type: array
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
+produces:
+- application/json
+swagger: "2.0"
