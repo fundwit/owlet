@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -121,5 +122,75 @@ func TestDetailArticlesAPI(t *testing.T) {
 		status, body, _ := testinfra.ExecuteRequest(req, router)
 		Expect(body).To(MatchJSON(`{"code":"common.bad_param", "message":"invalid id 'abc'", "data":null}`))
 		Expect(status).To(Equal(http.StatusBadRequest))
+	})
+}
+
+func TestPatchArticlesAPI(t *testing.T) {
+	RegisterTestingT(t)
+
+	router := gin.Default()
+	router.Use(fail.ErrorHandling())
+	RegisterArticlesRestAPI(router)
+
+	t.Run("should be able to handle error on binding id", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPut, PathArticles+"/abc", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code": "common.bad_param",
+			"message": "invalid id 'abc'",
+			"data":null}`))
+		Expect(status).To(Equal(http.StatusBadRequest))
+	})
+
+	t.Run("should be able to handle error on empty body", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code": "common.bad_param",
+			"message": "empty body",
+			"data":null}`))
+		Expect(status).To(Equal(http.StatusBadRequest))
+	})
+
+	t.Run("should be able to handle error on binding failed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", bytes.NewReader([]byte(
+			`{"content": "test content", "title": "test title", "type": 100, "status":200, "source": 300}`)))
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code": "common.bad_param",
+			"message": "Key: 'ArticlePatch.Type' Error:Field validation for 'Type' failed on the 'oneof' tag\n` +
+			`Key: 'ArticlePatch.Status' Error:Field validation for 'Status' failed on the 'oneof' tag\n` +
+			`Key: 'ArticlePatch.Source' Error:Field validation for 'Source' failed on the 'oneof' tag",
+			"data":null}`))
+		Expect(status).To(Equal(http.StatusBadRequest))
+	})
+
+	t.Run("should be able to handle error on query articles", func(t *testing.T) {
+		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+			return errors.New("some error")
+		}
+		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", bytes.NewReader([]byte(
+			`{"type":1, "source":1, "status":1}`)))
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code":"common.internal_server_error", "message":"some error", "data":null}`))
+		Expect(status).To(Equal(http.StatusInternalServerError))
+	})
+
+	t.Run("should be able to handle query success", func(t *testing.T) {
+		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+			Expect(id).To(Equal(types.ID(100)))
+			ip := *p
+			Expect(ip.Content).To(Equal("test content"))
+			Expect(ip.Title).To(Equal("test title"))
+			Expect(*ip.Type).To(Equal(GenericType(2)))
+			Expect(*ip.Source).To(Equal(ArticleSource(3)))
+			Expect(*ip.Status).To(Equal(ArticleStatus(1)))
+			Expect(*ip.IsTop).To(BeTrue())
+			Expect(*ip.IsElite).To(BeTrue())
+			return nil
+		}
+
+		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", bytes.NewReader([]byte(
+			`{"content": "test content", "title":"test title", "type":2, "source":3, "status":1, "is_top": true, "is_elite": true}`)))
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{}`))
+		Expect(status).To(Equal(http.StatusOK))
 	})
 }

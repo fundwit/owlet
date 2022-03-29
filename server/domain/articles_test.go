@@ -328,3 +328,109 @@ func TestDetailArticle_ErrorOnQueryArticle(t *testing.T) {
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }
+
+func TestPatchArticle_MaxParams(t *testing.T) {
+	RegisterTestingT(t)
+
+	ts := types.CurrentTimestamp()
+	timestampFunc = func() types.Timestamp {
+		return ts
+	}
+
+	_, mock := testinfra.SetUpMockSql()
+	const sqlExpr = "UPDATE `article` SET `content`=?,`is_elite`=?,`is_top`=?,`modify_time`=?," +
+		"`source`=?,`statue`=?,`title`=?,`type`=? WHERE id = ?"
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(sqlExpr)).
+		WithArgs("test content", true, true, ts, 3, 1, "test title", 2, 100).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	tp := GenericType(2)
+	src := ArticleSource(3)
+	status := ArticleStatus(1)
+	elite := true
+	top := true
+
+	param := ArticlePatch{
+		Title:   "test title",
+		Content: "test content",
+		Type:    &tp,
+		Source:  &src,
+		Status:  &status,
+		IsElite: &elite,
+		IsTop:   &top,
+	}
+	err := PatchArticle(100, &param, &sessions.Session{Context: context.TODO()})
+	Expect(err).To(BeNil())
+
+	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+}
+
+func TestPatchArticle_ErrorOnUpdate(t *testing.T) {
+	RegisterTestingT(t)
+
+	ts := types.CurrentTimestamp()
+	timestampFunc = func() types.Timestamp {
+		return ts
+	}
+
+	_, mock := testinfra.SetUpMockSql()
+	const sqlExpr = "UPDATE `article` SET `content`=?,`is_elite`=?,`is_top`=?,`modify_time`=?," +
+		"`source`=?,`statue`=?,`title`=?,`type`=? WHERE id = ?"
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(sqlExpr)).
+		WithArgs("test content", true, true, ts, 3, 1, "test title", 2, 100).
+		WillReturnError(sql.ErrConnDone)
+	mock.ExpectRollback()
+
+	tp := GenericType(2)
+	src := ArticleSource(3)
+	status := ArticleStatus(1)
+	elite := true
+	top := true
+
+	param := ArticlePatch{
+		Title:   "test title",
+		Content: "test content",
+		Type:    &tp,
+		Source:  &src,
+		Status:  &status,
+		IsElite: &elite,
+		IsTop:   &top,
+	}
+	err := PatchArticle(100, &param, &sessions.Session{Context: context.TODO()})
+	Expect(err).To(Equal(sql.ErrConnDone))
+
+	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+}
+
+func TestPatchArticle_EmptyParams(t *testing.T) {
+	RegisterTestingT(t)
+
+	ts := types.CurrentTimestamp()
+	timestampFunc = func() types.Timestamp {
+		return ts
+	}
+
+	_, mock := testinfra.SetUpMockSql()
+	err := PatchArticle(100, &ArticlePatch{}, &sessions.Session{Context: context.TODO()})
+	Expect(err).To(BeNil())
+
+	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+}
+
+func TestPatchArticle_NullParams(t *testing.T) {
+	RegisterTestingT(t)
+
+	ts := types.CurrentTimestamp()
+	timestampFunc = func() types.Timestamp {
+		return ts
+	}
+
+	_, mock := testinfra.SetUpMockSql()
+	err := PatchArticle(100, nil, &sessions.Session{Context: context.TODO()})
+	Expect(err).To(BeNil())
+
+	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+}

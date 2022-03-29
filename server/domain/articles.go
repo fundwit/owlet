@@ -84,10 +84,24 @@ type ArticleQuery struct {
 	Page    int    `form:"page"` // base 1
 }
 
+type ArticlePatch struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+
+	Type    *GenericType   `json:"type" binding:"omitempty,oneof=1 2 3"`
+	Status  *ArticleStatus `json:"status" binding:"omitempty,oneof=0 1"`
+	Source  *ArticleSource `json:"source" binding:"omitempty,oneof=1 2 3 4"`
+	IsElite *bool          `json:"is_elite"`
+	IsTop   *bool          `json:"is_top"`
+}
+
 var (
 	PageSize          = 10
 	QueryArticlesFunc = QueryArticles
 	DetailArticleFunc = DetailArticle
+	PatchArticleFunc  = PatchArticle
+
+	timestampFunc = types.CurrentTimestamp
 )
 
 func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
@@ -118,6 +132,43 @@ func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error
 	}
 
 	return articleMetaExtList, nil
+}
+
+func PatchArticle(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+	if p == nil || (*p == ArticlePatch{}) {
+		return nil
+	}
+	db := persistence.ActiveGormDB.Model(&ArticleRecord{}).Where("id = ?", id)
+
+	changes := map[string]interface{}{}
+	if p.Content != "" {
+		changes["content"] = p.Content
+	}
+	if p.Title != "" {
+		changes["title"] = p.Title
+	}
+	if p.Type != nil {
+		changes["type"] = p.Type
+	}
+	if p.Source != nil {
+		changes["source"] = p.Source
+	}
+	if p.Status != nil {
+		changes["statue"] = p.Status
+	}
+	if p.IsTop != nil {
+		changes["is_top"] = p.IsTop
+	}
+	if p.IsElite != nil {
+		changes["is_elite"] = p.IsElite
+	}
+	if len(changes) > 0 {
+		changes["modify_time"] = timestampFunc()
+	}
+	if err := db.Save(&changes).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func DetailArticle(id types.ID, s *sessions.Session) (*ArticleDetail, error) {

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"net/http"
 	"owlet/server/infra/fail"
 	"owlet/server/infra/sessions"
@@ -17,6 +18,7 @@ func RegisterArticlesRestAPI(r *gin.Engine, middleWares ...gin.HandlerFunc) {
 	g := r.Group(PathArticles, middleWares...)
 	g.GET("", handleQueryArticles)
 	g.GET(":id", handleDetailArticle)
+	g.PUT(":id", handlePatchArticle)
 }
 
 // @ID article-meta-list
@@ -55,4 +57,31 @@ func handleDetailArticle(c *gin.Context) {
 		panic(err)
 	}
 	c.JSON(http.StatusOK, detail)
+}
+
+// @ID article-patch
+// @Param id path uint64 true "id"
+// @Success 200 {object} domain.ArticlePatch "response body"
+// @Failure default {object} fail.ErrorBody "error"
+// @Router /v1/articles/{id} [put]
+func handlePatchArticle(c *gin.Context) {
+	id, err := misc.BindingPathID(c)
+	if err != nil {
+		panic(err)
+	}
+
+	p := ArticlePatch{}
+	err = c.ShouldBindJSON(&p)
+	if err != nil && err.Error() == "EOF" {
+		panic(&fail.ErrBadParam{Cause: errors.New("empty body")})
+	}
+	if err != nil {
+		panic(&fail.ErrBadParam{Cause: err})
+	}
+
+	err = PatchArticleFunc(id, &p, &sessions.Session{Context: c.Request.Context()})
+	if err != nil {
+		panic(err)
+	}
+	c.JSON(http.StatusOK, gin.H{})
 }
