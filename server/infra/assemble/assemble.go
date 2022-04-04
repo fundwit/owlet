@@ -4,6 +4,7 @@ import (
 	"owlet/server/domain"
 	"owlet/server/infra/doc"
 	"owlet/server/infra/meta"
+	"owlet/server/infra/sessions"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +33,7 @@ func init() {
 	RestAPIRegistry = []APIRegistryEntry{
 		{meta.RegisterMetaRestAPI, nil},
 		{doc.RegisterDocsAPI, nil},
-		{domain.RegisterArticlesRestAPI, []gin.HandlerFunc{}},
+		{domain.RegisterArticlesRestAPI, []gin.HandlerFunc{sessions.SessionTokenAuth()}},
 		{domain.RegisterTagsRestAPI, nil},
 	}
 }

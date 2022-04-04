@@ -22,11 +22,11 @@ const KeySecToken = "sec_token"
 func ExtractSessionFromGinContext(ctx *gin.Context) *Session {
 	value, found := ctx.Get(KeySecCtx)
 	if !found {
-		return &Session{Context: ctx.Request.Context()}
+		return &GuestSession
 	}
 	s0, ok := value.(*Session)
 	if !ok || s0.Token == "" {
-		return &Session{Context: ctx.Request.Context()}
+		return &GuestSession
 	}
 	s := s0.Clone()
 	s.Context = ctx.Request.Context() // trace context

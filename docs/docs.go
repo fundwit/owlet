@@ -71,6 +71,36 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/articles/": {
+            "post": {
+                "operationId": "article-create",
+                "parameters": [
+                    {
+                        "description": "request body",
+                        "name": "_",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.ArticleCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/misc.IdObject"
+                        }
+                    },
+                    "default": {
+                        "description": "error",
+                        "schema": {
+                            "$ref": "#/definitions/fail.ErrorBody"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/articles/{id}": {
             "get": {
                 "operationId": "article-detail",
@@ -88,6 +118,67 @@ const docTemplate = `{
                         "description": "response body",
                         "schema": {
                             "$ref": "#/definitions/domain.ArticleDetail"
+                        }
+                    },
+                    "default": {
+                        "description": "error",
+                        "schema": {
+                            "$ref": "#/definitions/fail.ErrorBody"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "operationId": "article-patch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "request body",
+                        "name": "_",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.ArticlePatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "response body is empty",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "default": {
+                        "description": "error",
+                        "schema": {
+                            "$ref": "#/definitions/fail.ErrorBody"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "article-delete",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "response body is empty",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "default": {
@@ -123,6 +214,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "domain.ArticleCreate": {
+            "type": "object",
+            "required": [
+                "content",
+                "source",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "is_elite": {
+                    "type": "boolean"
+                },
+                "is_top": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3,
+                        4
+                    ]
+                },
+                "status": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3
+                    ]
+                }
+            }
+        },
         "domain.ArticleDetail": {
             "type": "object",
             "properties": {
@@ -232,6 +370,47 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.ArticlePatch": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "is_elite": {
+                    "type": "boolean"
+                },
+                "is_top": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3,
+                        4
+                    ]
+                },
+                "status": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3
+                    ]
+                }
+            }
+        },
         "domain.Tag": {
             "type": "object",
             "properties": {
@@ -304,6 +483,14 @@ const docTemplate = `{
                 },
                 "startTime": {
                     "type": "string"
+                }
+            }
+        },
+        "misc.IdObject": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
                 }
             }
         }

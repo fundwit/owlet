@@ -25,12 +25,20 @@ type ServiceInfo struct {
 	NumMaxProcs  int `json:"numMaxProcs"`
 }
 
+type ServiceConfig struct {
+	AdminName   string
+	AdminSecret string
+}
+
 var idWorker = sonyflake.NewSonyflake(sonyflake.Settings{})
 var serviceMeta = ServiceMeta{
 	Name:       "owlet",
 	InstanceID: fmt.Sprint(idgen.NextID(idWorker)),
 	StartTime:  time.Now(),
 }
+
+var DefaultConfig = &ServiceConfig{AdminName: "admin", AdminSecret: "admin"}
+var Config *ServiceConfig = DefaultConfig
 
 func GetServiceMeta() ServiceInfo {
 	return ServiceInfo{

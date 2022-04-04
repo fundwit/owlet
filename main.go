@@ -10,5 +10,7 @@ import (
 // @Accept  json
 // @Produce  json
 func main() {
-	app.Bootstrap()
+	if err := app.RunAppFunc(); err != nil {
+		panic(err)
+	}
 }

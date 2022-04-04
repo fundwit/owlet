@@ -21,7 +21,7 @@ func RegisterTagsRestAPI(r *gin.Engine, middleWares ...gin.HandlerFunc) {
 // @Failure default {object} fail.ErrorBody "error"
 // @Router /v1/tags [get]
 func handleQueryTags(c *gin.Context) {
-	record, err := QueryTagsWithStatFunc(&sessions.Session{Context: c.Request.Context()})
+	record, err := QueryTagsWithStatFunc(sessions.ExtractSessionFromGinContext(c))
 	if err != nil {
 		panic(err)
 	}

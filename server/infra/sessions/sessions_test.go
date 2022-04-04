@@ -42,3 +42,18 @@ func TestVisibleProjects(t *testing.T) {
 		Expect(c.VisibleProjects()).To(Equal([]types.ID{}))
 	})
 }
+
+func TestIsAdmin(t *testing.T) {
+	RegisterTestingT(t)
+
+	t.Run("is admin work as expected", func(t *testing.T) {
+		c := sessions.Session{Identity: session.Identity{ID: 1}}
+		Expect(c.IsAdmin()).To(BeTrue())
+
+		c = sessions.Session{Identity: session.Identity{ID: 2}}
+		Expect(c.IsAdmin()).To(BeFalse())
+
+		c = sessions.Session{Identity: session.Identity{}}
+		Expect(c.IsAdmin()).To(BeFalse())
+	})
+}

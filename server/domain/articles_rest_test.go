@@ -25,6 +25,7 @@ func TestQueryArticlesAPI(t *testing.T) {
 
 	t.Run("should be able to handle error on query articles", func(t *testing.T) {
 		QueryArticlesFunc = func(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			return nil, errors.New("some error")
 		}
 
@@ -46,6 +47,7 @@ func TestQueryArticlesAPI(t *testing.T) {
 	t.Run("should be able to handle query request successfully", func(t *testing.T) {
 		var in ArticleQuery
 		QueryArticlesFunc = func(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			in = q
 			am := ArticleMeta{
 				ID: 100, Type: GenericTypeIT, Title: "demo article", UID: 10,
@@ -72,6 +74,69 @@ func TestQueryArticlesAPI(t *testing.T) {
 	})
 }
 
+func TestCreateArticlesAPI(t *testing.T) {
+	RegisterTestingT(t)
+
+	router := gin.Default()
+	router.Use(fail.ErrorHandling())
+	RegisterArticlesRestAPI(router)
+
+	t.Run("should be able to handle error on empty body", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, PathArticles, nil)
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code": "common.bad_param",
+			"message": "empty body",
+			"data":null}`))
+		Expect(status).To(Equal(http.StatusBadRequest))
+	})
+
+	t.Run("should be able to handle error on binding failed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, PathArticles, bytes.NewReader([]byte(
+			`{"type": 100, "status":200, "source": 300}`)))
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code": "common.bad_param",
+			"message": "Key: 'ArticleCreate.Title' Error:Field validation for 'Title' failed on the 'required' tag\n` +
+			`Key: 'ArticleCreate.Content' Error:Field validation for 'Content' failed on the 'required' tag\n` +
+			`Key: 'ArticleCreate.Type' Error:Field validation for 'Type' failed on the 'oneof' tag\n` +
+			`Key: 'ArticleCreate.Source' Error:Field validation for 'Source' failed on the 'oneof' tag\n` +
+			`Key: 'ArticleCreate.Status' Error:Field validation for 'Status' failed on the 'oneof' tag",
+			"data":null}`))
+		Expect(status).To(Equal(http.StatusBadRequest))
+	})
+
+	t.Run("should be able to handle error on query articles", func(t *testing.T) {
+		CreateArticleFunc = func(q *ArticleCreate, s *sessions.Session) (types.ID, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
+			return 0, errors.New("some error")
+		}
+		req := httptest.NewRequest(http.MethodPost, PathArticles, bytes.NewReader([]byte(
+			`{"title": "test title", "content": "test content", "type":1, "source":1, "status":1}`)))
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code":"common.internal_server_error", "message":"some error", "data":null}`))
+		Expect(status).To(Equal(http.StatusInternalServerError))
+	})
+
+	t.Run("should be able to handle query success", func(t *testing.T) {
+		CreateArticleFunc = func(q *ArticleCreate, s *sessions.Session) (types.ID, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
+			Expect(q.Content).To(Equal("test content"))
+			Expect(q.Title).To(Equal("test title"))
+			Expect(q.Type).To(Equal(GenericType(2)))
+			Expect(q.Source).To(Equal(ArticleSource(3)))
+			Expect(q.Status).To(Equal(ArticleStatus(1)))
+			Expect(q.IsTop).To(BeTrue())
+			Expect(q.IsElite).To(BeTrue())
+			return 100, nil
+		}
+
+		req := httptest.NewRequest(http.MethodPost, PathArticles, bytes.NewReader([]byte(
+			`{"content": "test content", "title":"test title", "type":2, "source":3, "status":1, "is_top": true, "is_elite": true}`)))
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"id": "100"}`))
+		Expect(status).To(Equal(http.StatusOK))
+	})
+}
+
 func TestDetailArticlesAPI(t *testing.T) {
 	RegisterTestingT(t)
 
@@ -90,6 +155,7 @@ func TestDetailArticlesAPI(t *testing.T) {
 		tags := []Tag{{ID: 1000, Name: "go", Image: "go.png", Note: "golang"}}
 
 		DetailArticleFunc = func(id types.ID, s *sessions.Session) (*ArticleDetail, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			Expect(id).To(Equal(types.ID(200)))
 			return &ArticleDetail{ArticleRecord: ArticleRecord{ArticleMeta: meta, Content: "content 100"}, Tags: tags}, nil
 		}
@@ -108,6 +174,7 @@ func TestDetailArticlesAPI(t *testing.T) {
 
 	t.Run("should be able to handle error on detail article", func(t *testing.T) {
 		DetailArticleFunc = func(id types.ID, s *sessions.Session) (*ArticleDetail, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			return nil, errors.New("some error")
 		}
 
@@ -164,6 +231,7 @@ func TestPatchArticlesAPI(t *testing.T) {
 
 	t.Run("should be able to handle error on query articles", func(t *testing.T) {
 		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			return errors.New("some error")
 		}
 		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", bytes.NewReader([]byte(
@@ -175,6 +243,7 @@ func TestPatchArticlesAPI(t *testing.T) {
 
 	t.Run("should be able to handle query success", func(t *testing.T) {
 		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			Expect(id).To(Equal(types.ID(100)))
 			ip := *p
 			Expect(ip.Content).To(Equal("test content"))
@@ -192,5 +261,47 @@ func TestPatchArticlesAPI(t *testing.T) {
 		status, body, _ := testinfra.ExecuteRequest(req, router)
 		Expect(body).To(MatchJSON(`{}`))
 		Expect(status).To(Equal(http.StatusOK))
+	})
+}
+
+func TestDeleteArticlesAPI(t *testing.T) {
+	RegisterTestingT(t)
+
+	router := gin.Default()
+	router.Use(fail.ErrorHandling())
+	RegisterArticlesRestAPI(router)
+
+	t.Run("should be able to delete article", func(t *testing.T) {
+		DeleteArticleFunc = func(id types.ID, s *sessions.Session) error {
+			Expect(*s).To(Equal(sessions.GuestSession))
+			Expect(id).To(Equal(types.ID(200)))
+			return nil
+		}
+
+		req := httptest.NewRequest(http.MethodDelete, PathArticles+"/200", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+
+		Expect(status).To(Equal(http.StatusNoContent))
+		Expect(body).To(Equal(""))
+	})
+
+	t.Run("should be able to handle error on delete article", func(t *testing.T) {
+		DeleteArticleFunc = func(id types.ID, s *sessions.Session) error {
+			Expect(*s).To(Equal(sessions.GuestSession))
+			Expect(id).To(Equal(types.ID(200)))
+			return errors.New("some error")
+		}
+
+		req := httptest.NewRequest(http.MethodDelete, PathArticles+"/200", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code":"common.internal_server_error", "message":"some error", "data":null}`))
+		Expect(status).To(Equal(http.StatusInternalServerError))
+	})
+
+	t.Run("should be able to handle error on bad params", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, PathArticles+"/abc", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, router)
+		Expect(body).To(MatchJSON(`{"code":"common.bad_param", "message":"invalid id 'abc'", "data":null}`))
+		Expect(status).To(Equal(http.StatusBadRequest))
 	})
 }

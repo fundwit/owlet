@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"owlet/server/infra/fail"
+	"owlet/server/infra/meta"
 	"owlet/server/infra/sessions"
 	"owlet/server/testinfra"
 	"testing"
@@ -56,5 +57,48 @@ func TestSessionFilter(t *testing.T) {
 		status, body, _ := testinfra.ExecuteRequest(req, engine)
 		Expect(status).To(Equal(http.StatusOK))
 		Expect(body).To(Equal("b"))
+	})
+}
+
+func TestSessionTokenAuth(t *testing.T) {
+	RegisterTestingT(t)
+
+	engine := gin.Default()
+	engine.Use(fail.ErrorHandling(), sessions.SessionTokenAuth())
+	engine.GET("/", func(c *gin.Context) {
+		s := sessions.ExtractSessionFromGinContext(c)
+		c.JSON(http.StatusOK, &(s))
+	})
+
+	t.Run("as guest when token is absent", func(t *testing.T) {
+		meta.Config = &meta.ServiceConfig{}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, engine)
+		Expect(status).To(Equal(http.StatusOK))
+		Expect(body).To(MatchJSON(`{"token": "hidden", "identity": {"id":"0", "name": "guest", "nickname": "Guest"},
+			"perms": null, "projectRoles": null}`))
+	})
+
+	t.Run("as guest when token is not correct", func(t *testing.T) {
+		meta.Config = &meta.ServiceConfig{AdminSecret: "correct"}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Add("cookie", "sec_token=bad")
+		status, body, _ := testinfra.ExecuteRequest(req, engine)
+		Expect(status).To(Equal(http.StatusOK))
+		Expect(body).To(MatchJSON(`{"token": "hidden", "identity": {"id":"0", "name": "guest", "nickname": "Guest"},
+			"perms": null, "projectRoles": null}`))
+	})
+
+	t.Run("as admin when token is correct", func(t *testing.T) {
+		meta.Config = &meta.ServiceConfig{AdminName: "admin1", AdminSecret: "correct"}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Add("cookie", "sec_token=correct")
+		status, body, _ := testinfra.ExecuteRequest(req, engine)
+		Expect(status).To(Equal(http.StatusOK))
+		Expect(body).To(MatchJSON(`{"token": "hidden", "identity": {"id":"1", "name": "admin1", "nickname": "admin1"},
+			"perms": null, "projectRoles": null}`))
 	})
 }

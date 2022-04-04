@@ -14,13 +14,13 @@ func TestFindSecurityContext(t *testing.T) {
 
 	t.Run("should work correctly", func(t *testing.T) {
 		ginCtx := &gin.Context{Request: &http.Request{}}
-		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.Session{Context: ginCtx.Request.Context()}))
+		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.GuestSession))
 
 		ginCtx.Set(session.KeySecCtx, "string value")
-		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.Session{Context: ginCtx.Request.Context()}))
+		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.GuestSession))
 
 		ginCtx.Set(session.KeySecCtx, &session.Session{})
-		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.Session{Context: ginCtx.Request.Context()}))
+		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.GuestSession))
 
 		ginCtx.Set(session.KeySecCtx, &session.Session{Token: "a token"})
 		Expect(*session.ExtractSessionFromGinContext(ginCtx)).To(Equal(session.Session{Token: "a token", Context: ginCtx.Request.Context()}))

@@ -1,6 +1,40 @@
 consumes:
 - application/json
 definitions:
+  domain.ArticleCreate:
+    properties:
+      content:
+        type: string
+      is_elite:
+        type: boolean
+      is_top:
+        type: boolean
+      source:
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        type: integer
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+      title:
+        type: string
+      type:
+        enum:
+        - 1
+        - 2
+        - 3
+        type: integer
+    required:
+    - content
+    - source
+    - title
+    - type
+    type: object
   domain.ArticleDetail:
     properties:
       abstracts:
@@ -73,6 +107,35 @@ definitions:
       view_num:
         type: integer
     type: object
+  domain.ArticlePatch:
+    properties:
+      content:
+        type: string
+      is_elite:
+        type: boolean
+      is_top:
+        type: boolean
+      source:
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        type: integer
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+      title:
+        type: string
+      type:
+        enum:
+        - 1
+        - 2
+        - 3
+        type: integer
+    type: object
   domain.Tag:
     properties:
       id:
@@ -122,6 +185,11 @@ definitions:
       startTime:
         type: string
     type: object
+  misc.IdObject:
+    properties:
+      id:
+        type: integer
+    type: object
 info:
   contact: {}
   description: A Wiki services.
@@ -159,7 +227,43 @@ paths:
           description: error
           schema:
             $ref: '#/definitions/fail.ErrorBody'
+  /v1/articles/:
+    post:
+      operationId: article-create
+      parameters:
+      - description: request body
+        in: body
+        name: _
+        required: true
+        schema:
+          $ref: '#/definitions/domain.ArticleCreate'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/misc.IdObject'
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
   /v1/articles/{id}:
+    delete:
+      operationId: article-delete
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: response body is empty
+          schema:
+            type: string
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
     get:
       operationId: article-detail
       parameters:
@@ -173,6 +277,29 @@ paths:
           description: response body
           schema:
             $ref: '#/definitions/domain.ArticleDetail'
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
+    put:
+      operationId: article-patch
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: request body
+        in: body
+        name: _
+        required: true
+        schema:
+          $ref: '#/definitions/domain.ArticlePatch'
+      responses:
+        "200":
+          description: response body is empty
+          schema:
+            type: string
         default:
           description: error
           schema:

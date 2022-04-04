@@ -12,6 +12,10 @@ type requestPath struct {
 	ID types.ID `uri:"id" binding:"required"`
 }
 
+type UidObject struct {
+	UID types.ID `json:"uid"`
+}
+
 type IdObject struct {
 	ID types.ID `json:"id"`
 }

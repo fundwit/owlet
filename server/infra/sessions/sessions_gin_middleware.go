@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"owlet/server/infra/fail"
+	"owlet/server/infra/meta"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,5 +25,17 @@ func SessionFilter() gin.HandlerFunc {
 		}
 		InjectSessionIntoGinContext(ctx, secCtx)
 		ctx.Next()
+	}
+}
+
+func SessionTokenAuth() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		token, err := ctx.Cookie(KeySecToken)
+		if err == nil && token == meta.Config.AdminSecret {
+			ctx.Set(KeySecCtx, &Session{
+				Token:    "hidden",
+				Identity: Identity{ID: 1, Name: meta.Config.AdminName, Nickname: meta.Config.AdminName},
+			})
+		}
 	}
 }

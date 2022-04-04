@@ -22,6 +22,7 @@ func TestQueryTagsAPI(t *testing.T) {
 
 	t.Run("should be able to handle error", func(t *testing.T) {
 		QueryTagsWithStatFunc = func(s *sessions.Session) ([]TagWithStat, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			return nil, errors.New("some error")
 		}
 		req := httptest.NewRequest(http.MethodGet, PathTags, nil)
@@ -32,6 +33,7 @@ func TestQueryTagsAPI(t *testing.T) {
 
 	t.Run("should be able to handle query request successfully", func(t *testing.T) {
 		QueryTagsWithStatFunc = func(s *sessions.Session) ([]TagWithStat, error) {
+			Expect(*s).To(Equal(sessions.GuestSession))
 			return []TagWithStat{
 				{Tag: Tag{ID: 100, Name: "golang", Note: "go language", Image: "golang.png"}, Count: 10},
 			}, nil

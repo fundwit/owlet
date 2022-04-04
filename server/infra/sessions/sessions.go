@@ -19,12 +19,13 @@ type Session struct {
 
 	Context context.Context `json:"-"`
 }
-
 type Identity struct {
 	ID       types.ID `json:"id"`
 	Name     string   `json:"name"`
 	Nickname string   `json:"nickname"`
 }
+
+var GuestSession = Session{Token: "hidden", Identity: Identity{ID: 0, Name: "guest", Nickname: "Guest"}}
 
 func (c *Session) Clone() Session {
 	return Session{
@@ -35,6 +36,10 @@ func (c *Session) Clone() Session {
 		SigningTime:  c.SigningTime,
 		Context:      c.Context,
 	}
+}
+
+func (c *Session) IsAdmin() bool {
+	return c.Identity.ID == types.ID(1)
 }
 
 // VisibleProjects  parse visible project ids from Context.Perms

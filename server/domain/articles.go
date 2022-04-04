@@ -1,10 +1,16 @@
 package domain
 
 import (
+	"errors"
+	"owlet/server/infra/fail"
+	"owlet/server/infra/idgen"
 	"owlet/server/infra/persistence"
 	"owlet/server/infra/sessions"
+	"owlet/server/misc"
 
 	"github.com/fundwit/go-commons/types"
+	"github.com/sony/sonyflake"
+	"gorm.io/gorm"
 )
 
 type ArticleStatus int
@@ -40,22 +46,24 @@ const (
 )
 
 type ArticleMeta struct {
-	ID    types.ID    `json:"id" gorm:"primary_key;type:BIGINT UNSIGNED NOT NULL"`
-	Type  GenericType `json:"type" gorm:"type:TINYINT NOT NULL"`
-	Title string      `json:"title" gorm:"type:NVARCHAR(255) NOT NULL"`
+	ID types.ID `json:"id" gorm:"primary_key;type:BIGINT UNSIGNED NOT NULL"`
+
+	Title     string `json:"title" gorm:"type:NVARCHAR(255) NOT NULL"`
+	Abstracts string `json:"abstracts" gorm:"type:NVARCHAR(1000) NULL"`
+
+	Type   GenericType   `json:"type" gorm:"type:TINYINT NOT NULL"`
+	Status ArticleStatus `json:"status" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
+	Source ArticleSource `json:"source" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
 
 	UID        types.ID        `json:"uid" gorm:"type:BIGINT NOT NULL"`
 	CreateTime types.Timestamp `json:"create_time" gorm:"type:DATETIME NOT NULL"`
 	ModifyTime types.Timestamp `json:"modify_time" gorm:"type:DATETIME NOT NULL"`
-	Status     ArticleStatus   `json:"status" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
-	IsInvalid  bool            `json:"is_invalid" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
 
-	Abstracts  string        `json:"abstracts" gorm:"type:NVARCHAR(1000) NULL"`
-	Source     ArticleSource `json:"source" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
-	IsElite    bool          `json:"is_elite" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
-	IsTop      bool          `json:"is_top" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
-	ViewNum    int           `json:"view_num" gorm:"type:INT NOT NULL DEFAULT '0'"`
-	CommentNum int           `json:"comment_num" gorm:"type:INT NOT NULL DEFAULT '0'"`
+	IsInvalid  bool `json:"is_invalid" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
+	IsElite    bool `json:"is_elite" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
+	IsTop      bool `json:"is_top" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
+	ViewNum    int  `json:"view_num" gorm:"type:INT NOT NULL DEFAULT '0'"`
+	CommentNum int  `json:"comment_num" gorm:"type:INT NOT NULL DEFAULT '0'"`
 }
 
 type ArticleRecord struct {
@@ -95,13 +103,32 @@ type ArticlePatch struct {
 	IsTop   *bool          `json:"is_top"`
 }
 
+type ArticleCreate struct {
+	Title   string `json:"title" binding:"required"`
+	Content string `json:"content" binding:"required"`
+
+	IsElite bool `json:"is_elite"`
+	IsTop   bool `json:"is_top"`
+
+	Type   GenericType   `json:"type" binding:"required,oneof=1 2 3"`
+	Source ArticleSource `json:"source" binding:"required,oneof=1 2 3 4"`
+	Status ArticleStatus `json:"status" binding:"omitempty,oneof=0 1"`
+}
+
 var (
 	PageSize          = 10
 	QueryArticlesFunc = QueryArticles
+	CreateArticleFunc = CreateArticle
 	DetailArticleFunc = DetailArticle
 	PatchArticleFunc  = PatchArticle
+	DeleteArticleFunc = DeleteArticle
 
 	timestampFunc = types.CurrentTimestamp
+	idWorker      = sonyflake.NewSonyflake(sonyflake.Settings{})
+	idFunc        = func() types.ID {
+		return idgen.NextID(idWorker)
+	}
+	permCheckFunc = permCheck
 )
 
 func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
@@ -134,46 +161,89 @@ func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error
 	return articleMetaExtList, nil
 }
 
+func CreateArticle(q *ArticleCreate, s *sessions.Session) (types.ID, error) {
+	if !s.IsAdmin() {
+		return 0, fail.ErrForbidden
+	}
+	if q == nil {
+		return 0, &fail.ErrBadParam{Cause: errors.New("bad param")}
+	}
+
+	ts := timestampFunc()
+	r := ArticleRecord{
+		ArticleMeta: ArticleMeta{
+			ID:    idFunc(),
+			Title: q.Title,
+
+			Type:   q.Type,
+			Status: q.Status,
+			Source: q.Source,
+
+			UID:        s.Identity.ID,
+			CreateTime: ts,
+			ModifyTime: ts,
+		},
+		Content: q.Content,
+	}
+	db := persistence.ActiveGormDB.Model(&ArticleRecord{})
+	if err := db.Create(&r).Error; err != nil {
+		return 0, err
+	}
+
+	return r.ID, nil
+}
+
 func PatchArticle(id types.ID, p *ArticlePatch, s *sessions.Session) error {
 	if p == nil || (*p == ArticlePatch{}) {
 		return nil
 	}
-	db := persistence.ActiveGormDB.Model(&ArticleRecord{}).Where("id = ?", id)
 
-	changes := map[string]interface{}{}
-	if p.Content != "" {
-		changes["content"] = p.Content
-	}
-	if p.Title != "" {
-		changes["title"] = p.Title
-	}
-	if p.Type != nil {
-		changes["type"] = p.Type
-	}
-	if p.Source != nil {
-		changes["source"] = p.Source
-	}
-	if p.Status != nil {
-		changes["statue"] = p.Status
-	}
-	if p.IsTop != nil {
-		changes["is_top"] = p.IsTop
-	}
-	if p.IsElite != nil {
-		changes["is_elite"] = p.IsElite
-	}
-	if len(changes) > 0 {
-		changes["modify_time"] = timestampFunc()
-	}
-	if err := db.Save(&changes).Error; err != nil {
-		return err
-	}
-	return nil
+	err := persistence.ActiveGormDB.Transaction(func(tx *gorm.DB) error {
+		if err := permCheckFunc(tx, id, s); err != nil {
+			return err
+		}
+
+		tx = tx.Model(&ArticleRecord{}).Where("id = ?", id)
+
+		changes := map[string]interface{}{}
+		if p.Content != "" {
+			changes["content"] = p.Content
+		}
+		if p.Title != "" {
+			changes["title"] = p.Title
+		}
+		if p.Type != nil {
+			changes["type"] = p.Type
+		}
+		if p.Source != nil {
+			changes["source"] = p.Source
+		}
+		if p.Status != nil {
+			changes["status"] = p.Status
+		}
+		if p.IsTop != nil {
+			changes["is_top"] = p.IsTop
+		}
+		if p.IsElite != nil {
+			changes["is_elite"] = p.IsElite
+		}
+		if len(changes) > 0 {
+			changes["modify_time"] = timestampFunc()
+		}
+		if err := tx.Save(&changes).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	return err
 }
 
 func DetailArticle(id types.ID, s *sessions.Session) (*ArticleDetail, error) {
 	var detail ArticleDetail
-	db := persistence.ActiveGormDB.Model(&ArticleRecord{}).Select("*").Where("id = ?", id)
+	db := persistence.ActiveGormDB.Model(&ArticleRecord{}).Select("*").
+		Where("id = ? AND is_invalid = 0 AND (status = 1 || uid = ?)", id, s.Identity.ID)
+
 	if err := db.First(&detail).Error; err != nil {
 		return nil, err
 	}
@@ -184,6 +254,43 @@ func DetailArticle(id types.ID, s *sessions.Session) (*ArticleDetail, error) {
 	}
 	detail.Tags = articleMetaExts[0].Tags
 	return &detail, nil
+}
+
+func DeleteArticle(id types.ID, s *sessions.Session) error {
+	err := persistence.ActiveGormDB.Transaction(func(tx *gorm.DB) error {
+		if err := permCheckFunc(tx, id, s); err != nil {
+			return err
+		}
+
+		tx = tx.Where("id = ?", id)
+		if !s.IsAdmin() {
+			tx = tx.Where("uid = ?", s.Identity.ID)
+		}
+		if err := tx.Delete(&ArticleRecord{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	return err
+}
+
+// if the user is not admin and not the author, forbidden
+// if record of the given id not found, sql.ErrNoRows?
+func permCheck(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+	if s.IsAdmin() {
+		return nil
+	}
+
+	uidObj := misc.UidObject{}
+	tx = tx.Model(&ArticleRecord{}).Select("uid").Where("id = ?", id)
+	if err := tx.First(&uidObj).Error; err != nil {
+		return err
+	}
+	if uidObj.UID != s.Identity.ID {
+		return fail.ErrForbidden
+	}
+	return nil
 }
 
 func appendTags(articleMetaExtList []ArticleMetaExt, s *sessions.Session) error {

@@ -10,6 +10,7 @@ import (
 	"owlet/server/infra/assemble"
 	"owlet/server/infra/fail"
 	"owlet/server/infra/localize"
+	"owlet/server/infra/meta"
 	"owlet/server/infra/persistence"
 	"owlet/server/infra/tracing"
 	"strconv"
@@ -19,12 +20,48 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 var (
 	GracefulShutdownTimeout time.Duration = 3 * time.Second
 	HttpPort                              = 80
+
+	RunAppFunc          = RunApp
+	BootstrapFunc       = Bootstrap
+	StartHTTPServerFunc = StartHTTPServer
 )
+
+func RunApp() error {
+	app := cli.NewApp()
+	app.Name = meta.GetServiceMeta().Name
+	app.Usage = ""
+	app.Flags = []cli.Flag{
+		cli.StringFlag{Name: "secret", Value: "", Usage: "admin secret"},
+		cli.StringFlag{Name: "admin", Value: "admin", Usage: "admin name"},
+	}
+
+	app.Action = func(config *cli.Context) error {
+		if meta.Config == nil {
+			meta.Config = meta.DefaultConfig
+		}
+
+		adminName := config.String("admin")
+		if adminName != "" {
+			meta.Config.AdminName = adminName
+		}
+
+		adminSecret := config.String("secret")
+		if adminSecret != "" {
+			meta.Config.AdminSecret = adminSecret
+		}
+
+		BootstrapFunc()
+		return nil
+	}
+
+	return app.Run(os.Args)
+}
 
 // Bootstrap
 //    database migration (with distribution lock)
