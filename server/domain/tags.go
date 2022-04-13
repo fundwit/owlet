@@ -1,10 +1,14 @@
 package domain
 
 import (
+	"errors"
+	"owlet/server/infra/idgen"
 	"owlet/server/infra/persistence"
 	"owlet/server/infra/sessions"
 
 	"github.com/fundwit/go-commons/types"
+	"github.com/sony/sonyflake"
+	"gorm.io/gorm"
 )
 
 type Tag struct {
@@ -26,13 +30,23 @@ type TagWithStat struct {
 }
 
 var (
+	tagIdWorker = sonyflake.NewSonyflake(sonyflake.Settings{})
+	tagIdFunc   = func() types.ID {
+		return idgen.NextID(tagIdWorker)
+	}
+
 	QueryTagsFunc         = QueryTags
 	QueryTagsWithStatFunc = QueryTagsWithStat
 	ExtendTagsStatFunc    = ExtendTagsStat
+	FindOrCreateTagFunc   = FindOrCreateTag
 )
 
 type TagQuery struct {
 	IDs []types.ID `form:"id" binding:"omitempty"`
+}
+
+type TagCreate struct {
+	Name string `json:"name" binding:"required"`
 }
 
 func QueryTagsWithStat(s *sessions.Session) ([]TagWithStat, error) {
@@ -53,6 +67,25 @@ func QueryTags(q TagQuery, s *sessions.Session) ([]Tag, error) {
 		return nil, err
 	}
 	return tags, nil
+}
+
+func FindOrCreateTag(tx *gorm.DB, q *TagCreate, s *sessions.Session) (*Tag, error) {
+	var tag Tag
+	err := tx.Model(&Tag{}).Where("tname LIKE ?", q.Name).First(&tag).Error
+	if err == nil {
+		return &tag, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	tag = Tag{
+		ID:   tagIdFunc(),
+		Name: q.Name,
+	}
+	if err := tx.Create(&tag).Error; err != nil {
+		return nil, err
+	}
+	return &tag, nil
 }
 
 func ExtendTagsStat(tags []Tag, s *sessions.Session) ([]TagWithStat, error) {

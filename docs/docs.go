@@ -190,6 +190,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/tag-assigns": {
+            "delete": {
+                "operationId": "tag-assign-query-delete",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "resource id",
+                        "name": "resId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "tag id",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "response body is empty",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "default": {
+                        "description": "error",
+                        "schema": {
+                            "$ref": "#/definitions/fail.ErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/tag-assigns/": {
+            "post": {
+                "operationId": "tag-assign-create",
+                "parameters": [
+                    {
+                        "description": "request body",
+                        "name": "_",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.TagAssignCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/misc.IdObject"
+                        }
+                    },
+                    "default": {
+                        "description": "error",
+                        "schema": {
+                            "$ref": "#/definitions/fail.ErrorBody"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/tags": {
             "get": {
                 "operationId": "tag-with-stat-list",
@@ -424,6 +489,21 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.TagAssignCreate": {
+            "type": "object",
+            "required": [
+                "resId",
+                "tagName"
+            ],
+            "properties": {
+                "resId": {
+                    "type": "integer"
+                },
+                "tagName": {
                     "type": "string"
                 }
             }

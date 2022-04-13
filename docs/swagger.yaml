@@ -147,6 +147,16 @@ definitions:
       note:
         type: string
     type: object
+  domain.TagAssignCreate:
+    properties:
+      resId:
+        type: integer
+      tagName:
+        type: string
+    required:
+    - resId
+    - tagName
+    type: object
   domain.TagWithStat:
     properties:
       count:
@@ -300,6 +310,48 @@ paths:
           description: response body is empty
           schema:
             type: string
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
+  /v1/tag-assigns:
+    delete:
+      operationId: tag-assign-query-delete
+      parameters:
+      - description: resource id
+        in: query
+        name: resId
+        required: true
+        type: integer
+      - description: tag id
+        in: query
+        name: tagId
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: response body is empty
+          schema:
+            type: string
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/fail.ErrorBody'
+  /v1/tag-assigns/:
+    post:
+      operationId: tag-assign-create
+      parameters:
+      - description: request body
+        in: body
+        name: _
+        required: true
+        schema:
+          $ref: '#/definitions/domain.TagAssignCreate'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/misc.IdObject'
         default:
           description: error
           schema:

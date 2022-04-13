@@ -35,5 +35,6 @@ func init() {
 		{doc.RegisterDocsAPI, nil},
 		{domain.RegisterArticlesRestAPI, []gin.HandlerFunc{sessions.SessionTokenAuth()}},
 		{domain.RegisterTagsRestAPI, nil},
+		{domain.RegisterTagAssignsRestAPI, []gin.HandlerFunc{sessions.SessionTokenAuth()}},
 	}
 }

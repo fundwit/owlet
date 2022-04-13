@@ -17,6 +17,6 @@ func TestBootstrap(t *testing.T) {
 			registerEntry.Register(engine, registerEntry.MiddleWares...)
 			count++
 		}
-		Expect(count).Should(Equal(4))
+		Expect(count).Should(Equal(5))
 	})
 }

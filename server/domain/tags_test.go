@@ -22,6 +22,14 @@ func TestTagTableName(t *testing.T) {
 	})
 }
 
+func TestTagIdFunc(t *testing.T) {
+	RegisterTestingT(t)
+
+	t.Run("id func work as expected", func(t *testing.T) {
+		Expect(tagIdFunc()).ToNot(BeZero())
+	})
+}
+
 func TestQueryTags(t *testing.T) {
 	RegisterTestingT(t)
 
@@ -117,6 +125,109 @@ func TestQueryTagsWithStat(t *testing.T) {
 		result, err := QueryTagsWithStat(&sessions.Session{Context: context.TODO()})
 		Expect(err).To(Equal(sql.ErrConnDone))
 		Expect(result).To(BeEmpty())
+	})
+}
+
+func TestFindOrCreateTag(t *testing.T) {
+	RegisterTestingT(t)
+
+	t.Run("should be able to find tag", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+		q := TagCreate{
+			Name: "test",
+		}
+		s := &sessions.Session{Context: context.TODO()}
+
+		const sqlExpr = "SELECT * FROM `tag` WHERE tname LIKE ? ORDER BY `tag`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs("test").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "tname", "note", "img"}).
+				AddRow(100, "test", "Test", "test.png"))
+
+		tag, err := FindOrCreateTag(db, &q, s)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(*tag).To(Equal(Tag{ID: 100, Name: "test", Note: "Test", Image: "test.png"}))
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("should raise error of find tag sql", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+
+		q := TagCreate{
+			Name: "test",
+		}
+		s := &sessions.Session{Context: context.TODO()}
+
+		const sqlExpr = "SELECT * FROM `tag` WHERE tname LIKE ? ORDER BY `tag`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs("test").
+			WillReturnError(sql.ErrConnDone)
+
+		idObj, err := FindOrCreateTag(db, &q, s)
+		Expect(err).To(Equal(sql.ErrConnDone))
+		Expect(idObj).To(BeNil())
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("should be create new tag when name not found", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+		q := TagCreate{
+			Name: "test",
+		}
+		s := &sessions.Session{Context: context.TODO()}
+		id := types.ID(200)
+		tagIdFunc = func() types.ID {
+			return id
+		}
+
+		const sqlExpr = "SELECT * FROM `tag` WHERE tname LIKE ? ORDER BY `tag`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs("test").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "tname", "note", "img"}))
+		mock.ExpectBegin()
+		const createSqlExpr = "INSERT INTO `tag` (`tname`,`note`,`img`,`id`) VALUES (?,?,?,?)"
+		mock.ExpectExec(regexp.QuoteMeta(createSqlExpr)).
+			WithArgs("test", "", "", id).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		tag, err := FindOrCreateTag(db, &q, s)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(*tag).To(Equal(Tag{ID: id, Name: "test"}))
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("should raise error of tag create sql", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+
+		q := TagCreate{
+			Name: "test",
+		}
+		s := &sessions.Session{Context: context.TODO()}
+		id := types.ID(200)
+		tagIdFunc = func() types.ID {
+			return id
+		}
+
+		const sqlExpr = "SELECT * FROM `tag` WHERE tname LIKE ? ORDER BY `tag`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs("test").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "tname", "note", "img"}))
+		mock.ExpectBegin()
+		const createSqlExpr = "INSERT INTO `tag` (`tname`,`note`,`img`,`id`) VALUES (?,?,?,?)"
+		mock.ExpectExec(regexp.QuoteMeta(createSqlExpr)).
+			WithArgs("test", "", "", id).
+			WillReturnError(sql.ErrConnDone)
+		mock.ExpectRollback()
+
+		idObj, err := FindOrCreateTag(db, &q, s)
+		Expect(err).To(Equal(sql.ErrConnDone))
+		Expect(idObj).To(BeNil())
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 }
 

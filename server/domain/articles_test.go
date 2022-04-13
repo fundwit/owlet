@@ -709,18 +709,3 @@ func TestPermCheck(t *testing.T) {
 	})
 
 }
-
-// func TestDeleteArticle(t *testing.T) {
-// 	RegisterTestingT(t)
-
-// 	s := &sessions.Session{Context: context.TODO(), Identity: sessions.Identity{ID: 1}}
-// 	ts := types.CurrentTimestamp()
-// 	timestampFunc = func() types.Timestamp {
-// 		return ts
-// 	}
-
-// 	t.Run("delete article should be able to expose error of nil param", func(t *testing.T) {
-// 		err := DeleteArticle(10, s)
-// 		Expect(err.Error()).To(Equal("bad param"))
-// 	})
-// }
