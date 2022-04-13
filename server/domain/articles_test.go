@@ -589,9 +589,31 @@ func TestDeleteArticle(t *testing.T) {
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 
+	t.Run("error raised when failed to delete tag assign", func(t *testing.T) {
+		_, mock := testinfra.SetUpMockSql()
+		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+			return nil
+		}
+		ClearArticleTagAssignsFunc = func(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
+			return sql.ErrConnDone
+		}
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `article` WHERE id = ?")).
+			WithArgs(10).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectRollback()
+
+		Expect(DeleteArticle(10, admin)).To(Equal(sql.ErrConnDone))
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
 	t.Run("success if user is admin", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
 		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+			return nil
+		}
+		ClearArticleTagAssignsFunc = func(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
 			return nil
 		}
 		mock.ExpectBegin()
@@ -610,6 +632,9 @@ func TestDeleteArticle(t *testing.T) {
 
 		_, mock := testinfra.SetUpMockSql()
 		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+			return nil
+		}
+		ClearArticleTagAssignsFunc = func(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
 			return nil
 		}
 		mock.ExpectBegin()

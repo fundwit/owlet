@@ -262,11 +262,15 @@ func DeleteArticle(id types.ID, s *sessions.Session) error {
 			return err
 		}
 
-		tx = tx.Where("id = ?", id)
+		db := tx.Where("id = ?", id)
 		if !s.IsAdmin() {
-			tx = tx.Where("uid = ?", s.Identity.ID)
+			db = db.Where("uid = ?", s.Identity.ID)
 		}
-		if err := tx.Delete(&ArticleRecord{}).Error; err != nil {
+		if err := db.Delete(&ArticleRecord{}).Error; err != nil {
+			return err
+		}
+
+		if err := ClearArticleTagAssignsFunc(tx, id, s); err != nil {
 			return err
 		}
 		return nil

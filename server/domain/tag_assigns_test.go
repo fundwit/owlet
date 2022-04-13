@@ -71,3 +71,39 @@ func TestQueryTagAssignments(t *testing.T) {
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 }
+
+func TestClearArticleTagAssigns(t *testing.T) {
+	RegisterTestingT(t)
+
+	t.Run("should be able to clear tag assignments of article", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+
+		const sqlExpr = "DELETE FROM `tag_assign` WHERE res_id = ? AND res_type = 0"
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(sqlExpr)).
+			WithArgs(100).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := ClearArticleTagAssigns(db, 100, &sessions.Session{Context: context.TODO()})
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("should raise error of delete sql", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+
+		const sqlExpr = "DELETE FROM `tag_assign` WHERE res_id = ? AND res_type = 0"
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(sqlExpr)).
+			WithArgs(100).
+			WillReturnError(sql.ErrConnDone)
+		mock.ExpectRollback()
+
+		err := ClearArticleTagAssigns(db, 100, &sessions.Session{Context: context.TODO()})
+		Expect(err).To(Equal(err))
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+}

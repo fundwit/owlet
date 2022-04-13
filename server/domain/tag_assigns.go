@@ -5,6 +5,7 @@ import (
 	"owlet/server/infra/sessions"
 
 	"github.com/fundwit/go-commons/types"
+	"gorm.io/gorm"
 )
 
 type ResType int
@@ -33,7 +34,8 @@ func (r *TagAssignment) TableName() string {
 }
 
 var (
-	QueryTagAssignmentsFunc = QueryTagAssignments
+	QueryTagAssignmentsFunc    = QueryTagAssignments
+	ClearArticleTagAssignsFunc = ClearArticleTagAssigns
 )
 
 func QueryTagAssignments(resIds []types.ID, s *sessions.Session) ([]TagAssignment, error) {
@@ -49,6 +51,13 @@ func QueryTagAssignments(resIds []types.ID, s *sessions.Session) ([]TagAssignmen
 		return nil, err
 	}
 	return tagAssigns, nil
+}
+
+func ClearArticleTagAssigns(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
+	if err := tx.Where("res_id = ? AND res_type = 0", articleId).Delete(&TagAssignment{}).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 // var (
