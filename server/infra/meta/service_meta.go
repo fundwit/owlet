@@ -38,7 +38,7 @@ var serviceMeta = ServiceMeta{
 }
 
 var DefaultConfig = &ServiceConfig{AdminName: "admin", AdminSecret: "admin"}
-var Config *ServiceConfig = DefaultConfig
+var Config ServiceConfig = *DefaultConfig
 
 func GetServiceMeta() ServiceInfo {
 	return ServiceInfo{

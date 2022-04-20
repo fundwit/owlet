@@ -71,7 +71,7 @@ func TestSessionTokenAuth(t *testing.T) {
 	})
 
 	t.Run("as guest when token is absent", func(t *testing.T) {
-		meta.Config = &meta.ServiceConfig{}
+		meta.Config = meta.ServiceConfig{}
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		status, body, _ := testinfra.ExecuteRequest(req, engine)
@@ -81,7 +81,7 @@ func TestSessionTokenAuth(t *testing.T) {
 	})
 
 	t.Run("as guest when token is not correct", func(t *testing.T) {
-		meta.Config = &meta.ServiceConfig{AdminSecret: "correct"}
+		meta.Config = meta.ServiceConfig{AdminSecret: "correct"}
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Add("cookie", "sec_token=bad")
@@ -92,7 +92,7 @@ func TestSessionTokenAuth(t *testing.T) {
 	})
 
 	t.Run("as admin when token is correct", func(t *testing.T) {
-		meta.Config = &meta.ServiceConfig{AdminName: "admin1", AdminSecret: "correct"}
+		meta.Config = meta.ServiceConfig{AdminName: "admin1", AdminSecret: "correct"}
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Add("cookie", "sec_token=correct")

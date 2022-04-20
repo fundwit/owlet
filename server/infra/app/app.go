@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"owlet/server/infra/persistence"
 	"owlet/server/infra/tracing"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,18 +44,22 @@ func RunApp() error {
 	}
 
 	app.Action = func(config *cli.Context) error {
-		if meta.Config == nil {
-			meta.Config = meta.DefaultConfig
-		}
+		meta.Config = *meta.DefaultConfig
 
 		adminName := config.String("admin")
 		if adminName != "" {
-			meta.Config.AdminName = adminName
+			meta.Config.AdminName = strings.TrimSpace(os.ExpandEnv(adminName))
+			if meta.Config.AdminName == "" {
+				return errors.New("admin name is empty after env expand")
+			}
 		}
 
 		adminSecret := config.String("secret")
 		if adminSecret != "" {
-			meta.Config.AdminSecret = adminSecret
+			meta.Config.AdminSecret = strings.TrimSpace(os.ExpandEnv(adminSecret))
+			if meta.Config.AdminSecret == "" {
+				return errors.New("admin secret is empty after env expand")
+			}
 		}
 
 		BootstrapFunc()
