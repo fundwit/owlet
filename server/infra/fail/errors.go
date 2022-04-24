@@ -9,6 +9,7 @@ var ErrUnexpected = errors.New("common.internal_server_error")
 var ErrInvalidArguments = errors.New("invalid arguments")
 var ErrUnauthenticated = errors.New("security.unauthenticated")
 var ErrForbidden = errors.New("security.forbidden")
+var ErrModifyBehind = errors.New("common.modify_behind")
 
 var ErrNotFound = errors.New("not found")
 var ErrNoContent = errors.New("no content")

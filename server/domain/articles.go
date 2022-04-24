@@ -9,6 +9,7 @@ import (
 	"owlet/server/misc"
 
 	"github.com/fundwit/go-commons/types"
+	"github.com/sirupsen/logrus"
 	"github.com/sony/sonyflake"
 	"gorm.io/gorm"
 )
@@ -101,6 +102,8 @@ type ArticlePatch struct {
 	Source  *ArticleSource `json:"source" binding:"omitempty,oneof=1 2 3 4"`
 	IsElite *bool          `json:"is_elite"`
 	IsTop   *bool          `json:"is_top"`
+
+	BaseModifyTime types.Timestamp `json:"baseModifyTime"`
 }
 
 type ArticleCreate struct {
@@ -128,7 +131,8 @@ var (
 	idFunc        = func() types.ID {
 		return idgen.NextID(idWorker)
 	}
-	permCheckFunc = permCheck
+	checkPermFunc         = checkPerm
+	checkModifyBehindFunc = checkModifyBehind
 )
 
 func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
@@ -193,13 +197,18 @@ func CreateArticle(q *ArticleCreate, s *sessions.Session) (types.ID, error) {
 	return r.ID, nil
 }
 
-func PatchArticle(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+func PatchArticle(id types.ID, p *ArticlePatch, s *sessions.Session) (*types.Timestamp, error) {
 	if p == nil || (*p == ArticlePatch{}) {
-		return nil
+		return nil, nil
 	}
 
+	ts := timestampFunc()
 	err := persistence.ActiveGormDB.Transaction(func(tx *gorm.DB) error {
-		if err := permCheckFunc(tx, id, s); err != nil {
+		if err := checkPermFunc(tx, id, s); err != nil {
+			return err
+		}
+
+		if err := checkModifyBehindFunc(tx, id, p.BaseModifyTime); err != nil {
 			return err
 		}
 
@@ -228,7 +237,7 @@ func PatchArticle(id types.ID, p *ArticlePatch, s *sessions.Session) error {
 			changes["is_elite"] = p.IsElite
 		}
 		if len(changes) > 0 {
-			changes["modify_time"] = timestampFunc()
+			changes["modify_time"] = ts
 		}
 		if err := tx.Save(&changes).Error; err != nil {
 			return err
@@ -236,7 +245,11 @@ func PatchArticle(id types.ID, p *ArticlePatch, s *sessions.Session) error {
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return &ts, nil
 }
 
 func DetailArticle(id types.ID, s *sessions.Session) (*ArticleDetail, error) {
@@ -258,7 +271,7 @@ func DetailArticle(id types.ID, s *sessions.Session) (*ArticleDetail, error) {
 
 func DeleteArticle(id types.ID, s *sessions.Session) error {
 	err := persistence.ActiveGormDB.Transaction(func(tx *gorm.DB) error {
-		if err := permCheckFunc(tx, id, s); err != nil {
+		if err := checkPermFunc(tx, id, s); err != nil {
 			return err
 		}
 
@@ -281,7 +294,7 @@ func DeleteArticle(id types.ID, s *sessions.Session) error {
 
 // if the user is not admin and not the author, forbidden
 // if record of the given id not found, sql.ErrNoRows?
-func permCheck(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+func checkPerm(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 	if s.IsAdmin() {
 		return nil
 	}
@@ -293,6 +306,22 @@ func permCheck(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 	}
 	if uidObj.UID != s.Identity.ID {
 		return fail.ErrForbidden
+	}
+	return nil
+}
+
+func checkModifyBehind(tx *gorm.DB, id types.ID, baseTimestamp types.Timestamp) error {
+	if baseTimestamp.IsZero() {
+		return nil
+	}
+	a := ArticleRecord{}
+	db := tx.Model(&ArticleRecord{}).Select("modify_time").Where("id = ?", id)
+	if err := db.First(&a).Error; err != nil {
+		return err
+	}
+	if a.ModifyTime.Time().After(baseTimestamp.Time()) {
+		logrus.Warnf("expected last modified at %s, behind the actual last modified at %s\n", baseTimestamp, a.ModifyTime)
+		return fail.ErrModifyBehind
 	}
 	return nil
 }

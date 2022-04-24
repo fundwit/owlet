@@ -7,6 +7,7 @@ import (
 	"owlet/server/infra/sessions"
 	"owlet/server/misc"
 
+	"github.com/fundwit/go-commons/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -83,6 +84,11 @@ func handleDetailArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, detail)
 }
 
+type PatchResponse struct {
+	ID         types.ID        `json:"id"`
+	ModifyTime types.Timestamp `json:"modifyTime"`
+}
+
 // @ID article-patch
 // @Param id path uint64 true "id"
 // @Param _ body domain.ArticlePatch true "request body"
@@ -104,11 +110,11 @@ func handlePatchArticle(c *gin.Context) {
 		panic(&fail.ErrBadParam{Cause: err})
 	}
 
-	err = PatchArticleFunc(id, &p, sessions.ExtractSessionFromGinContext(c))
+	rt, err := PatchArticleFunc(id, &p, sessions.ExtractSessionFromGinContext(c))
 	if err != nil {
 		panic(err)
 	}
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, &PatchResponse{ID: id, ModifyTime: *rt})
 }
 
 // @ID article-delete

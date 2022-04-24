@@ -131,7 +131,7 @@ func TestCreateTagAssign(t *testing.T) {
 		tagAssignIdFunc = func() types.ID {
 			return 123
 		}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return sql.ErrConnDone
@@ -158,7 +158,7 @@ func TestCreateTagAssign(t *testing.T) {
 		tagAssignIdFunc = func() types.ID {
 			return 123
 		}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return nil
@@ -188,7 +188,7 @@ func TestCreateTagAssign(t *testing.T) {
 		tagAssignIdFunc = func() types.ID {
 			return 123
 		}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return nil
@@ -223,7 +223,7 @@ func TestCreateTagAssign(t *testing.T) {
 		tagAssignIdFunc = func() types.ID {
 			return 123
 		}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return nil
@@ -265,7 +265,7 @@ func TestDeleteTagAssignWithQuery(t *testing.T) {
 			TagID: 10,
 		}
 		s := &sessions.Session{Context: context.TODO()}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return nil
@@ -292,7 +292,7 @@ func TestDeleteTagAssignWithQuery(t *testing.T) {
 			TagID: 10,
 		}
 		s := &sessions.Session{Context: context.TODO()}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return sql.ErrConnDone
@@ -315,7 +315,7 @@ func TestDeleteTagAssignWithQuery(t *testing.T) {
 			TagID: 10,
 		}
 		s := &sessions.Session{Context: context.TODO()}
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s0 *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*s0))
 			return nil

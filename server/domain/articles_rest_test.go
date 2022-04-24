@@ -230,9 +230,9 @@ func TestPatchArticlesAPI(t *testing.T) {
 	})
 
 	t.Run("should be able to handle error on query articles", func(t *testing.T) {
-		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) (*types.Timestamp, error) {
 			Expect(*s).To(Equal(sessions.GuestSession))
-			return errors.New("some error")
+			return nil, errors.New("some error")
 		}
 		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", bytes.NewReader([]byte(
 			`{"type":1, "source":1, "status":1}`)))
@@ -242,7 +242,8 @@ func TestPatchArticlesAPI(t *testing.T) {
 	})
 
 	t.Run("should be able to handle query success", func(t *testing.T) {
-		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) error {
+		ts := types.TimestampOfDate(2022, 4, 5, 6, 10, 20, 0, time.UTC)
+		PatchArticleFunc = func(id types.ID, p *ArticlePatch, s *sessions.Session) (*types.Timestamp, error) {
 			Expect(*s).To(Equal(sessions.GuestSession))
 			Expect(id).To(Equal(types.ID(100)))
 			ip := *p
@@ -253,13 +254,15 @@ func TestPatchArticlesAPI(t *testing.T) {
 			Expect(*ip.Status).To(Equal(ArticleStatus(1)))
 			Expect(*ip.IsTop).To(BeTrue())
 			Expect(*ip.IsElite).To(BeTrue())
-			return nil
+			Expect(ip.BaseModifyTime).To(Equal(types.TimestampOfDate(2022, 4, 5, 6, 7, 8, 0, time.UTC)))
+			return &ts, nil
 		}
 
 		req := httptest.NewRequest(http.MethodPut, PathArticles+"/100", bytes.NewReader([]byte(
-			`{"content": "test content", "title":"test title", "type":2, "source":3, "status":1, "is_top": true, "is_elite": true}`)))
+			`{"content": "test content", "title":"test title", "type":2, "source":3, "status":1, "is_top": true, "is_elite": true,
+			  "baseModifyTime": "2022-04-05T06:07:08Z"}`)))
 		status, body, _ := testinfra.ExecuteRequest(req, router)
-		Expect(body).To(MatchJSON(`{}`))
+		Expect(body).To(MatchJSON(`{"id": "100", "modifyTime": "2022-04-05T06:10:20Z"}`))
 		Expect(status).To(Equal(http.StatusOK))
 	})
 }

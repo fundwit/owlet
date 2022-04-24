@@ -352,22 +352,24 @@ func TestPatchArticle_NullParams(t *testing.T) {
 
 	t.Run("patch article with null params should return directly", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
-		err := PatchArticle(100, nil, s)
+		rt, err := PatchArticle(100, nil, s)
 		Expect(err).To(BeNil())
+		Expect(rt).To(BeNil())
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 
 	t.Run("patch article with empty params should return directly", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
-		err := PatchArticle(100, &ArticlePatch{}, s)
+		rt, err := PatchArticle(100, &ArticlePatch{}, s)
 		Expect(err).To(BeNil())
+		Expect(rt).To(BeNil())
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 
 	t.Run("only admin can patch article", func(t *testing.T) {
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(100)))
 			Expect(*s).To(Equal(*user))
 			return fail.ErrForbidden
@@ -377,14 +379,37 @@ func TestPatchArticle_NullParams(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 
-		err := PatchArticle(100, &ArticlePatch{Title: "test title"}, user)
+		rt, err := PatchArticle(100, &ArticlePatch{Title: "test title"}, user)
 		Expect(err).To(Equal(fail.ErrForbidden))
+		Expect(rt).To(BeNil())
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("return error when error on checkModifyBehind", func(t *testing.T) {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+			return nil
+		}
+		checkModifyBehindFunc = func(tx *gorm.DB, id types.ID, baseTimestamp types.Timestamp) error {
+			return fail.ErrModifyBehind
+		}
+
+		_, mock := testinfra.SetUpMockSql()
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		rt, err := PatchArticle(100, &ArticlePatch{Title: "test title"}, user)
+		Expect(err).To(Equal(fail.ErrModifyBehind))
+		Expect(rt).To(BeNil())
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 
 	t.Run("patch article with error on update", func(t *testing.T) {
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+			return nil
+		}
+		checkModifyBehindFunc = func(tx *gorm.DB, id types.ID, baseTimestamp types.Timestamp) error {
 			return nil
 		}
 
@@ -412,14 +437,18 @@ func TestPatchArticle_NullParams(t *testing.T) {
 			IsElite: &elite,
 			IsTop:   &top,
 		}
-		err := PatchArticle(100, &param, s)
+		rt, err := PatchArticle(100, &param, s)
 		Expect(err).To(Equal(sql.ErrConnDone))
+		Expect(rt).To(BeNil())
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
 
 	t.Run("patch article success with max params", func(t *testing.T) {
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+			return nil
+		}
+		checkModifyBehindFunc = func(tx *gorm.DB, id types.ID, baseTimestamp types.Timestamp) error {
 			return nil
 		}
 
@@ -447,8 +476,9 @@ func TestPatchArticle_NullParams(t *testing.T) {
 			IsElite: &elite,
 			IsTop:   &top,
 		}
-		err := PatchArticle(100, &param, s)
+		rt, err := PatchArticle(100, &param, s)
 		Expect(err).To(BeNil())
+		Expect(*rt).To(Equal(ts))
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 	})
@@ -559,7 +589,7 @@ func TestDeleteArticle(t *testing.T) {
 
 	t.Run("error raised when perm check failed", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 			Expect(id).To(Equal(types.ID(10)))
 			Expect(*s).To(Equal(*admin))
 			return sql.ErrConnDone
@@ -574,7 +604,7 @@ func TestDeleteArticle(t *testing.T) {
 
 	t.Run("error raised when delete sql failed", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 			return nil
 		}
 		mock.ExpectBegin()
@@ -591,7 +621,7 @@ func TestDeleteArticle(t *testing.T) {
 
 	t.Run("error raised when failed to delete tag assign", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 			return nil
 		}
 		ClearArticleTagAssignsFunc = func(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
@@ -610,7 +640,7 @@ func TestDeleteArticle(t *testing.T) {
 
 	t.Run("success if user is admin", func(t *testing.T) {
 		_, mock := testinfra.SetUpMockSql()
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 			return nil
 		}
 		ClearArticleTagAssignsFunc = func(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
@@ -631,7 +661,7 @@ func TestDeleteArticle(t *testing.T) {
 		user := &sessions.Session{Context: context.TODO(), Identity: sessions.Identity{ID: 100}}
 
 		_, mock := testinfra.SetUpMockSql()
-		permCheckFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
+		checkPermFunc = func(tx *gorm.DB, id types.ID, s *sessions.Session) error {
 			return nil
 		}
 		ClearArticleTagAssignsFunc = func(tx *gorm.DB, articleId types.ID, s *sessions.Session) error {
@@ -660,7 +690,7 @@ func TestPermCheck(t *testing.T) {
 	}
 
 	t.Run("success if user is admin", func(t *testing.T) {
-		Expect(permCheck(nil, 10, admin)).To(BeNil())
+		Expect(checkPerm(nil, 10, admin)).To(BeNil())
 	})
 
 	t.Run("get error article not found", func(t *testing.T) {
@@ -672,7 +702,7 @@ func TestPermCheck(t *testing.T) {
 			WithArgs(10).
 			WillReturnRows(rows)
 
-		err := permCheck(db, 10, user)
+		err := checkPerm(db, 10, user)
 		Expect(err).To(Equal(gorm.ErrRecordNotFound))
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
@@ -687,7 +717,7 @@ func TestPermCheck(t *testing.T) {
 			WithArgs(10).
 			WillReturnRows(rows)
 
-		err := permCheck(db, 10, user)
+		err := checkPerm(db, 10, user)
 		Expect(err).To(Equal(fail.ErrForbidden))
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
@@ -702,7 +732,83 @@ func TestPermCheck(t *testing.T) {
 			WithArgs(10).
 			WillReturnRows(rows)
 
-		err := permCheck(db, 10, user)
+		err := checkPerm(db, 10, user)
+		Expect(err).To(BeNil())
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+}
+
+func TestCheckModifyBehind(t *testing.T) {
+	RegisterTestingT(t)
+
+	ts := types.CurrentTimestamp()
+	timestampFunc = func() types.Timestamp {
+		return ts
+	}
+
+	t.Run("success if base timestamp is zero", func(t *testing.T) {
+		Expect(checkModifyBehind(nil, 10, types.Timestamp{})).To(BeNil())
+	})
+
+	t.Run("get error article not found", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+		rows := sqlmock.NewRows([]string{"modify_time"})
+
+		const sqlExpr = "SELECT `modify_time` FROM `article` WHERE id = ? ORDER BY `article`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs(10).
+			WillReturnRows(rows)
+
+		err := checkModifyBehind(db, 10, types.CurrentTimestamp())
+		Expect(err).To(Equal(gorm.ErrRecordNotFound))
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("return error if modify behind others", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+		rows := sqlmock.NewRows([]string{"modify_time"}).
+			AddRow(types.TimestampOfDate(2022, 4, 25, 10, 20, 30, 0, time.UTC))
+
+		const sqlExpr = "SELECT `modify_time` FROM `article` WHERE id = ? ORDER BY `article`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs(10).
+			WillReturnRows(rows)
+
+		err := checkModifyBehind(db, 10, types.TimestampOfDate(2022, 4, 25, 10, 20, 20, 0, time.UTC))
+		Expect(err).To(Equal(fail.ErrModifyBehind))
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("success if modify time equals", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+		rows := sqlmock.NewRows([]string{"modify_time"}).
+			AddRow(types.TimestampOfDate(2022, 4, 25, 10, 20, 30, 0, time.UTC))
+
+		const sqlExpr = "SELECT `modify_time` FROM `article` WHERE id = ? ORDER BY `article`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs(10).
+			WillReturnRows(rows)
+
+		err := checkModifyBehind(db, 10, types.TimestampOfDate(2022, 4, 25, 10, 20, 30, 0, time.UTC))
+		Expect(err).To(BeNil())
+
+		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+	})
+
+	t.Run("success if modify not behind others", func(t *testing.T) {
+		db, mock := testinfra.SetUpMockSql()
+		rows := sqlmock.NewRows([]string{"modify_time"}).
+			AddRow(types.TimestampOfDate(2022, 4, 25, 10, 20, 30, 0, time.UTC))
+
+		const sqlExpr = "SELECT `modify_time` FROM `article` WHERE id = ? ORDER BY `article`.`id` LIMIT 1"
+		mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+			WithArgs(10).
+			WillReturnRows(rows)
+
+		err := checkModifyBehind(db, 10, types.TimestampOfDate(2022, 4, 25, 10, 20, 40, 0, time.UTC))
 		Expect(err).To(BeNil())
 
 		Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())

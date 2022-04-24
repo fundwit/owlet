@@ -71,6 +71,11 @@ func HandleError(c *gin.Context, err error) {
 		c.Abort()
 		return
 	}
+	if errors.Is(genericErr, ErrModifyBehind) {
+		c.JSON(http.StatusBadRequest, &ErrorBody{Code: "bad_request.modify_behind", Message: "modify behind others"})
+		c.Abort()
+		return
+	}
 
 	if errors.Is(genericErr, ErrUnauthenticated) {
 		c.JSON(http.StatusUnauthorized, &ErrorBody{Code: ErrUnauthenticated.Error(), Message: "unauthenticated"})

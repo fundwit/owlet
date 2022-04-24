@@ -85,7 +85,7 @@ func CreateTagAssign(c *TagAssignCreate, s *sessions.Session) (*TagAssignCreateR
 	var resp *TagAssignCreateResponse
 
 	dbErr := persistence.ActiveGormDB.Transaction(func(tx *gorm.DB) error {
-		if err := permCheckFunc(tx, c.ResID, s); err != nil {
+		if err := checkPermFunc(tx, c.ResID, s); err != nil {
 			return err
 		}
 
@@ -108,7 +108,7 @@ func CreateTagAssign(c *TagAssignCreate, s *sessions.Session) (*TagAssignCreateR
 
 func DeleteTagAssignWithQuery(c *TagAssignRelation, s *sessions.Session) error {
 	return persistence.ActiveGormDB.Transaction(func(tx *gorm.DB) error {
-		if err := permCheckFunc(tx, c.ResID, s); err != nil {
+		if err := checkPermFunc(tx, c.ResID, s); err != nil {
 			return err
 		}
 		if err := tx.Where("res_id = ? AND tag = ? AND res_type = 0", c.ResID, c.TagID).

@@ -199,6 +199,19 @@ func TestThirdpartErrorHandling(t *testing.T) {
 		Expect(body).To(MatchJSON(`{"code":"bad_request.validation_failed", "message":"validation failed", "data": ""}`))
 	})
 
+	t.Run("should handle modify behind error", func(t *testing.T) {
+		r := gin.Default()
+		r.Use(fail.ErrorHandling())
+
+		r.GET("/", func(c *gin.Context) {
+			c.Error(fail.ErrModifyBehind)
+		})
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		status, body, _ := testinfra.ExecuteRequest(req, r)
+		Expect(status).To(Equal(http.StatusBadRequest))
+		Expect(body).To(MatchJSON(`{"code":"bad_request.modify_behind", "message":"modify behind others", "data": null}`))
+	})
+
 	t.Run("should handle mysql.ErrInvalidConn", func(t *testing.T) {
 		r := gin.Default()
 		r.Use(fail.ErrorHandling())

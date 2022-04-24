@@ -438,6 +438,9 @@ const docTemplate = `{
         "domain.ArticlePatch": {
             "type": "object",
             "properties": {
+                "baseModifyTime": {
+                    "type": "string"
+                },
                 "content": {
                     "type": "string"
                 },
