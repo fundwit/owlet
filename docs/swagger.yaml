@@ -231,6 +231,10 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            X-TOTAL:
+              description: number of all records
+              type: int
           schema:
             items:
               $ref: '#/definitions/domain.ArticleMetaExt'

@@ -60,6 +60,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/domain.ArticleMetaExt"
                             }
+                        },
+                        "headers": {
+                            "X-TOTAL": {
+                                "type": "int",
+                                "description": "number of all records"
+                            }
                         }
                     },
                     "default": {

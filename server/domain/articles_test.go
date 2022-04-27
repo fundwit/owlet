@@ -52,6 +52,9 @@ func TestQueryArticleMetas_MinArgsWithTagsExtend(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
 		WithArgs(0).
 		WillReturnRows(rows)
+	const sqlCountExpr = "SELECT count(*) FROM `article` WHERE is_invalid = 0 AND (status = 1 || uid = ?)"
+	mock.ExpectQuery(regexp.QuoteMeta(sqlCountExpr)).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(30))
 
 	QueryTagAssignmentsFunc = func(resIds []types.ID, s *sessions.Session) ([]TagAssignment, error) {
 		return []TagAssignment{
@@ -69,13 +72,14 @@ func TestQueryArticleMetas_MinArgsWithTagsExtend(t *testing.T) {
 		return tags, nil
 	}
 
-	result, err := QueryArticles(ArticleQuery{Page: 0}, &sessions.Session{Context: context.TODO()})
+	result, count, err := QueryArticles(ArticleQuery{Page: 0}, &sessions.Session{Context: context.TODO()})
 
 	Expect(err).ToNot(HaveOccurred())
 	Expect(result).To(Equal([]ArticleMetaExt{
 		{ArticleMeta: article.ArticleMeta, Tags: tags},
 		{ArticleMeta: article2.ArticleMeta, Tags: []Tag{tags[1]}},
 	}))
+	Expect(count).To(Equal(int64(30)))
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }
@@ -102,16 +106,23 @@ func TestQueryArticleMetas_MaxArgs(t *testing.T) {
 		WithArgs(10, "%go%").
 		WillReturnRows(rows)
 
+	const sqlCountExpr = "SELECT count(*) FROM `article` " +
+		"WHERE (is_invalid = 0 AND (status = 1 || uid = ?)) AND title LIKE ?"
+	mock.ExpectQuery(regexp.QuoteMeta(sqlCountExpr)).
+		WithArgs(10, "%go%").
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(30))
+
 	QueryTagAssignmentsFunc = func(resIds []types.ID, s *sessions.Session) ([]TagAssignment, error) {
 		return nil, nil
 	}
 
-	result, err := QueryArticles(ArticleQuery{KeyWord: "go", Page: 3}, &sessions.Session{
+	result, count, err := QueryArticles(ArticleQuery{KeyWord: "go", Page: 3}, &sessions.Session{
 		Context:  context.TODO(),
 		Identity: sessions.Identity{ID: 10},
 	})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(result).To(Equal([]ArticleMetaExt{{ArticleMeta: article.ArticleMeta, Tags: nil}}))
+	Expect(count).To(Equal(int64(30)))
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }
@@ -130,10 +141,14 @@ func TestQueryArticleMetas_MinArgsAndNoResult(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
 		WithArgs(0).
 		WillReturnRows(rows)
+	const sqlCountExpr = "SELECT count(*) FROM `article` WHERE is_invalid = 0 AND (status = 1 || uid = ?)"
+	mock.ExpectQuery(regexp.QuoteMeta(sqlCountExpr)).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 
-	result, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
+	result, count, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(result).To(BeNil())
+	Expect(count).To(BeZero())
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }
@@ -159,6 +174,10 @@ func TestQueryArticleMetas_ErrorOnQueryTags(t *testing.T) {
 		WithArgs(0).
 		WillReturnRows(rows)
 
+	const sqlCountExpr = "SELECT count(*) FROM `article` WHERE is_invalid = 0 AND (status = 1 || uid = ?)"
+	mock.ExpectQuery(regexp.QuoteMeta(sqlCountExpr)).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(30))
+
 	QueryTagAssignmentsFunc = func(resIds []types.ID, s *sessions.Session) ([]TagAssignment, error) {
 		return []TagAssignment{
 			{ID: 2000, TagID: 20, ResID: article.ID, ResType: 0, TagOrder: 1},
@@ -169,9 +188,10 @@ func TestQueryArticleMetas_ErrorOnQueryTags(t *testing.T) {
 		return nil, sql.ErrConnDone
 	}
 
-	result, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
+	result, count, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
 	Expect(err).To(Equal(sql.ErrConnDone))
 	Expect(result).To(BeEmpty())
+	Expect(count).To(BeZero())
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }
@@ -197,13 +217,51 @@ func TestQueryArticleMetas_ErrorOnQueryTagAssignments(t *testing.T) {
 		WithArgs(0).
 		WillReturnRows(rows)
 
+	const sqlCountExpr = "SELECT count(*) FROM `article` WHERE is_invalid = 0 AND (status = 1 || uid = ?)"
+	mock.ExpectQuery(regexp.QuoteMeta(sqlCountExpr)).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(30))
+
 	QueryTagAssignmentsFunc = func(resIds []types.ID, s *sessions.Session) ([]TagAssignment, error) {
 		return nil, sql.ErrConnDone
 	}
 
-	result, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
+	result, count, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
 	Expect(err).To(Equal(sql.ErrConnDone))
 	Expect(result).To(BeEmpty())
+	Expect(count).To(BeZero())
+
+	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
+}
+
+func TestQueryArticleMetas_ErrorOnQueryArticlesCount(t *testing.T) {
+	RegisterTestingT(t)
+
+	_, mock := testinfra.SetUpMockSql()
+
+	article := ArticleRecord{
+		ArticleMeta: ArticleMeta{ID: 100, Type: 1, Title: "title", UID: 1000},
+		Content:     "content",
+	}
+	rows := sqlmock.NewRows([]string{"id", "type", "title", "uid"}).
+		AddRow(article.ID, article.Type, article.Title, article.UID)
+
+	const sqlExpr = "SELECT id, type, title, uid, create_time, modify_time, status, is_invalid, " +
+		"abstracts, source, is_elite, is_top, view_num, comment_num " +
+		"FROM `article` WHERE is_invalid = 0 AND (status = 1 || uid = ?) " +
+		"ORDER BY is_top DESC, create_time DESC LIMIT 10"
+
+	mock.ExpectQuery(regexp.QuoteMeta(sqlExpr)).
+		WithArgs(0).
+		WillReturnRows(rows)
+
+	const sqlCountExpr = "SELECT count(*) FROM `article` WHERE is_invalid = 0 AND (status = 1 || uid = ?)"
+	mock.ExpectQuery(regexp.QuoteMeta(sqlCountExpr)).
+		WillReturnError(sql.ErrConnDone)
+
+	result, count, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
+	Expect(err).To(Equal(sql.ErrConnDone))
+	Expect(result).To(BeEmpty())
+	Expect(count).To(BeZero())
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }
@@ -222,9 +280,10 @@ func TestQueryArticleMetas_ErrorOnQueryArticles(t *testing.T) {
 		WithArgs(0).
 		WillReturnError(sql.ErrConnDone)
 
-	result, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
+	result, count, err := QueryArticles(ArticleQuery{}, &sessions.Session{Context: context.TODO()})
 	Expect(err).To(Equal(sql.ErrConnDone))
 	Expect(result).To(BeEmpty())
+	Expect(count).To(BeZero())
 
 	Expect(mock.ExpectationsWereMet()).ShouldNot(HaveOccurred())
 }

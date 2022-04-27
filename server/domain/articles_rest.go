@@ -6,6 +6,7 @@ import (
 	"owlet/server/infra/fail"
 	"owlet/server/infra/sessions"
 	"owlet/server/misc"
+	"strconv"
 
 	"github.com/fundwit/go-commons/types"
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,7 @@ func RegisterArticlesRestAPI(r *gin.Engine, middleWares ...gin.HandlerFunc) {
 // @Param page query int false "page number based 1"
 // @Success 200 {array} domain.ArticleMetaExt
 // @Failure default {object} fail.ErrorBody "error"
+// @Header 200 {int} X-TOTAL "number of all records"
 // @Router /v1/articles [get]
 func handleQueryArticles(c *gin.Context) {
 	q := ArticleQuery{}
@@ -37,10 +39,11 @@ func handleQueryArticles(c *gin.Context) {
 		panic(&fail.ErrBadParam{Cause: err})
 	}
 
-	record, err := QueryArticlesFunc(q, sessions.ExtractSessionFromGinContext(c))
+	record, count, err := QueryArticlesFunc(q, sessions.ExtractSessionFromGinContext(c))
 	if err != nil {
 		panic(err)
 	}
+	c.Writer.Header().Add("X-TOTAL", strconv.FormatInt(count, 10))
 	c.JSON(http.StatusOK, record)
 }
 

@@ -24,9 +24,9 @@ func TestQueryArticlesAPI(t *testing.T) {
 	RegisterArticlesRestAPI(router)
 
 	t.Run("should be able to handle error on query articles", func(t *testing.T) {
-		QueryArticlesFunc = func(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
+		QueryArticlesFunc = func(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, int64, error) {
 			Expect(*s).To(Equal(sessions.GuestSession))
-			return nil, errors.New("some error")
+			return nil, 0, errors.New("some error")
 		}
 
 		req := httptest.NewRequest(http.MethodGet, PathArticles, nil)
@@ -46,7 +46,7 @@ func TestQueryArticlesAPI(t *testing.T) {
 
 	t.Run("should be able to handle query request successfully", func(t *testing.T) {
 		var in ArticleQuery
-		QueryArticlesFunc = func(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
+		QueryArticlesFunc = func(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, int64, error) {
 			Expect(*s).To(Equal(sessions.GuestSession))
 			in = q
 			am := ArticleMeta{
@@ -58,19 +58,19 @@ func TestQueryArticlesAPI(t *testing.T) {
 			}
 			return []ArticleMetaExt{
 				{ArticleMeta: am, Tags: []Tag{{ID: 1000, Name: "go", Image: "go.png", Note: "golang"}}},
-			}, nil
+			}, 30, nil
 		}
 
 		req := httptest.NewRequest(http.MethodGet, PathArticles+"?kw=demo&page=2", nil)
-		status, body, _ := testinfra.ExecuteRequest(req, router)
+		status, body, resp := testinfra.ExecuteRequest(req, router)
 		Expect(status).To(Equal(http.StatusOK))
 		Expect(body).To(MatchJSON(`[{"id": "100", "type": 2, "title": "demo article", "uid": "10",
 			"create_time": "2022-01-02T03:04:05Z", "modify_time": "2022-01-02T03:04:05Z",
 			"status": 1, "is_invalid": false, "abstracts": "demo", "source": 1,
 			"is_elite": true, "is_top": true, "view_num": 30, "comment_num": 20,
 			"tags": [{"id": "1000", "name":"go", "image":"go.png", "note": "golang"}]}]`))
-
 		Expect(in).To(Equal(ArticleQuery{KeyWord: "demo", Page: 2}))
+		Expect(resp.Header.Get("X-TOTAL")).To(Equal("30"))
 	})
 }
 

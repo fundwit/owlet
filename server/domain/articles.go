@@ -135,7 +135,7 @@ var (
 	checkModifyBehindFunc = checkModifyBehind
 )
 
-func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error) {
+func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, int64, error) {
 	offset := (q.Page - 1) * PageSize
 	if offset < 0 {
 		offset = 0
@@ -149,20 +149,28 @@ func QueryArticles(q ArticleQuery, s *sessions.Session) ([]ArticleMetaExt, error
 		Offset(offset).
 		Limit(PageSize)
 
+	dbCount := persistence.ActiveGormDB.Model(&ArticleRecord{}).
+		Where("is_invalid = 0 AND (status = 1 || uid = ?)", s.Identity.ID)
+
 	if len(q.KeyWord) > 0 {
 		db.Where("title LIKE ?", "%"+q.KeyWord+"%")
+		dbCount.Where("title LIKE ?", "%"+q.KeyWord+"%")
 	}
 
 	var articleMetaExtList []ArticleMetaExt
 	if err := db.Scan(&articleMetaExtList).Error; err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+	var count int64
+	if err := dbCount.Count(&count).Error; err != nil {
+		return nil, 0, err
 	}
 
 	if err := appendTags(articleMetaExtList, s); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return articleMetaExtList, nil
+	return articleMetaExtList, count, nil
 }
 
 func CreateArticle(q *ArticleCreate, s *sessions.Session) (types.ID, error) {
