@@ -36,8 +36,8 @@ CREATE TABLE `article` (
   `title` varchar(255)  NOT NULL,
   `content` text  NOT NULL,
   `uid` bigint NOT NULL,
-  `create_time` datetime NOT NULL,
-  `modify_time` datetime NOT NULL,
+  `create_time` datetime(6) NOT NULL,
+  `modify_time` datetime(6) NOT NULL,
   `status` int NOT NULL DEFAULT '0',
   `is_invalid` tinyint(1) NOT NULL DEFAULT '0',
   `abstracts` varchar(1000)  DEFAULT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE `article_sync` (
   `author` bigint NOT NULL,
   `sync_link` varchar(255)  DEFAULT NULL,
   `sync_type` tinyint DEFAULT NULL,
-  `sync_time` datetime DEFAULT NULL,
+  `sync_time` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique` (`article_id`,`sync_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -132,8 +132,8 @@ CREATE TABLE `link` (
   `type` int NOT NULL,
   `info` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `snapshot` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
-  `create_time` datetime NOT NULL,
-  `modify_time` datetime NOT NULL,
+  `create_time` datetime(6) NOT NULL,
+  `modify_time` datetime(6) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -203,7 +203,7 @@ DROP TABLE IF EXISTS `tag`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tag` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `tname` varchar(255)  NOT NULL,
   `note` varchar(255)  DEFAULT NULL,
   `img` varchar(255)  DEFAULT NULL,
@@ -219,10 +219,10 @@ DROP TABLE IF EXISTS `tag_assign`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tag_assign` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `res_type` int NOT NULL,
   `res_id` bigint NOT NULL,
-  `tag` int NOT NULL,
+  `tag` bigint NOT NULL,
   `tag_order` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique` (`res_type`,`res_id`,`tag`) USING BTREE
@@ -241,8 +241,8 @@ CREATE TABLE `task` (
   `title` varchar(255) CHARACTER SET utf8 NOT NULL,
   `desc` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `type` int DEFAULT NULL,
-  `start` datetime DEFAULT NULL,
-  `end` datetime DEFAULT NULL,
+  `start` datetime(6) DEFAULT NULL,
+  `end` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -265,8 +265,8 @@ CREATE TABLE `user` (
   `real_name` varchar(255)  DEFAULT NULL,
   `phone_no` varchar(100)  DEFAULT NULL,
   `islock` tinyint(1) NOT NULL DEFAULT '0',
-  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `create_time` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -279,8 +279,8 @@ DROP TABLE IF EXISTS `user_identity`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `user_identity` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `user` int NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user` bigint NOT NULL,
   `auth_channel` int NOT NULL,
   `channel_key` varchar(255)  NOT NULL,
   PRIMARY KEY (`id`)

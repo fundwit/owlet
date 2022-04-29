@@ -20,8 +20,8 @@ type User struct {
 	PhoneNo     string   `json:"phone_no" gorm:"type:VARCHAR(255)"`
 	IsLocked    bool     `json:"islock" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
 
-	CreateTime types.Timestamp `json:"create_time" gorm:"type:DATETIME NOT NULL"`
-	ModifyTime types.Timestamp `json:"modify_time" gorm:"type:DATETIME NOT NULL"`
+	CreateTime types.Timestamp `json:"create_time" gorm:"type:DATETIME(6) NOT NULL"`
+	ModifyTime types.Timestamp `json:"modify_time" gorm:"type:DATETIME(6) NOT NULL"`
 }
 
 type UserIdentity struct {

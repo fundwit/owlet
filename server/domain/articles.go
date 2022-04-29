@@ -57,8 +57,8 @@ type ArticleMeta struct {
 	Source ArticleSource `json:"source" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
 
 	UID        types.ID        `json:"uid" gorm:"type:BIGINT NOT NULL"`
-	CreateTime types.Timestamp `json:"create_time" gorm:"type:DATETIME NOT NULL"`
-	ModifyTime types.Timestamp `json:"modify_time" gorm:"type:DATETIME NOT NULL"`
+	CreateTime types.Timestamp `json:"create_time" gorm:"type:DATETIME(6) NOT NULL"`
+	ModifyTime types.Timestamp `json:"modify_time" gorm:"type:DATETIME(6) NOT NULL"`
 
 	IsInvalid  bool `json:"is_invalid" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
 	IsElite    bool `json:"is_elite" gorm:"type:TINYINT NOT NULL DEFAULT '0'"`
