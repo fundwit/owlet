@@ -16,6 +16,6 @@ func RegisterMetaRestAPI(r *gin.Engine, middleWares ...gin.HandlerFunc) {
 // @Router / [get]
 func metaInfo(c *gin.Context) {
 	// localize.MustGetMessage("status-running")
-	m := GetServiceMeta()
+	m := AcquireServiceMetaFunc()
 	c.JSON(http.StatusOK, &m)
 }

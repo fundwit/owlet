@@ -36,7 +36,7 @@ var (
 
 func RunApp() error {
 	app := cli.NewApp()
-	app.Name = meta.GetServiceMeta().Name
+	app.Name = meta.AcquireServiceMeta().Name
 	app.Usage = ""
 	app.Flags = []cli.Flag{
 		cli.StringFlag{Name: "secret", Value: "", Usage: "admin secret"},

@@ -17,7 +17,7 @@ func NewTracer() (opentracing.Tracer, io.Closer, error) {
 	// Sample configuration for testing. Use constant sampling to sample every
 	// trace and enable LogSpan to log every span via configured Logger.
 	cfg := &jaegerconfig.Configuration{
-		ServiceName: meta.GetServiceMeta().Name,
+		ServiceName: meta.AcquireServiceMeta().Name,
 		Sampler: &jaegerconfig.SamplerConfig{
 			Type:  jaeger.SamplerTypeConst,
 			Param: 1,

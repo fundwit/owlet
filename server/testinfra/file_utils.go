@@ -42,3 +42,7 @@ func (tf *TempFile) Clear() {
 		}
 	}
 }
+
+func (tf *TempFile) GetRealPath() string {
+	return tf.file
+}
